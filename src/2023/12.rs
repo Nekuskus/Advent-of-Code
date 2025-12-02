@@ -1,7 +1,9 @@
+use std::io::Write;
+
+use itertools::concat;
 use utils::*;
 
 // Symbols to replace: 12 21 525152 7922 SOLVE2
-
 
 #[cfg(test)]
 mod tests {
@@ -14,7 +16,10 @@ mod tests {
         if result == 21 {
             Ok(())
         } else {
-            Err(format!("12: Bad result for Part 1 example, expected 21 got {}", result))
+            Err(format!(
+                "12: Bad result for Part 1 example, expected 21 got {}",
+                result
+            ))
         }
     }
     /*
@@ -34,11 +39,14 @@ mod tests {
         let lines = get_input!("12-full.txt");
         let result1 = crate::part1(&lines);
         //let result2 = crate::part2(&lines);
-        
+
         if result1 == 7922 {
             Ok(())
         } else {
-            Err(format!("12: Bad result for Part 1, expected 7922 got {}", result1))
+            Err(format!(
+                "12: Bad result for Part 1, expected 7922 got {}",
+                result1
+            ))
         }
         /*
         match (result1, result2) {
@@ -48,7 +56,6 @@ mod tests {
             (_, _) => Err(format!("12: Bad result for Part 1 & 2, expected (7922, SOLVE2) got ({}, {})", result1, result2))
         }*/
     }
-    
 }
 
 fn main() {
@@ -58,118 +65,187 @@ fn main() {
 
     println!("12-full.txt");
     println!("{}", part1(&linesfull));
-    println!("{}\n", part2(&linesfull));
-    
+    // println!("{}\n", part2(&linesfull));
+
     println!("12-1-example.txt");
     println!("{}", part1(&lines1));
-    println!("{}\n", part2(&lines1));
+    // println!("{}\n", part2(&lines1));
 }
 
-fn get_next_permutation(line: &String, pat: &String) -> Option<String> {
-    if pat.chars().zip(line.chars()).all(|item| { // Already iterated through all possibilities
-        if item.0 == item.1 {
-            return true
-        } else if item.0 == '?' && item.1 == '#' {
-            return true
-        } else {
-            return false;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Spring {
+    Operational,
+    Damaged,
+    Unknown,
+}
+
+impl From<char> for Spring {
+    fn from(value: char) -> Spring {
+        match value {
+            '.' => Spring::Operational,
+            '#' => Spring::Damaged,
+            '?' => Spring::Unknown,
+            _ => panic!("Malformed input data"),
         }
-    }) {
-        return None;
     }
+}
 
-    let marked_indices = pat.chars().enumerate().filter(|(_, c)| c == &'?').map(|(idx, _)| idx).collect::<Vec<usize>>();
+#[derive(Clone, Debug)]
+struct Row {
+    springs: Vec<Spring>,
+    pattern: Vec<u8>,
+}
 
-    let mut first_broken = usize::MAX;
-    let mut first_working = usize::MAX;
+fn validate_row(springs: &Vec<Spring>, pattern: &Vec<u8>) -> bool {
+    // TODO: Rewrite
+    // let mut counters: Vec<u8> = pattern.iter().rev().cloned().collect();
+
+    // let mut looking_for_delimeter = false;
     
-    let mut line_chars = line.chars().collect::<Vec<_>>();
-    //println!("{marked_indices:?}");
-    for idx in &marked_indices {
-        if first_working == usize::MAX && line_chars[*idx] == '.' {
-            first_working = *idx;
-        } else if first_broken == usize::MAX && line_chars[*idx] == '#' {
-            first_broken = *idx;
-        }
+    // let mut started_damaged_block = false;
+    
+    // let mut counting_remaining = false;
+    // let mut remainining_slots = 0;
 
-        if first_working != usize::MAX && first_broken != usize::MAX {
-            break;
-        }
-    }
+    // let mut cur_pattern = counters.pop().unwrap();
 
-    if first_broken == usize::MAX || first_working < first_broken {
-        line_chars[first_working] = '#';
-    } else if first_working > first_broken {
-        for x in marked_indices.iter().filter(|idx| idx < &&first_working) {
-            line_chars[*x] = '.';
-        }
-        line_chars[first_working] = '#';
-    }
+    // let exit_early = false;
 
-    return Some(line_chars.iter().collect());
+    // for spring in springs.iter() {
+
+    //     match spring {
+    //         Spring::Operational => {
+    //             if looking_for_delimeter {
+    //                 looking_for_delimeter = false;
+    //             } else if started_damaged_block {
+    //                 if cur_pattern == 0 {
+    //                     started_damaged_block = false;
+    //                 } else {
+    //                     return false;
+    //                 }
+    //             }
+    //         }
+    //         Spring::Damaged => {
+    //             if !started_damaged_block { 
+    //                 started_damaged_block = true;
+    //             }
+
+    //             if counting_remaining || looking_for_delimeter {
+    //                 return false;
+    //             } else {
+    //                 cur_pattern -= 1;
+    //             }
+    //         }
+    //         Spring::Unknown => {
+    //             counting_remaining = true;
+    //             if looking_for_delimeter {
+    //                 looking_for_delimeter = false;
+    //             } else {
+    //                 remainining_slots += 1;
+    //             }
+    //         }
+    //     }
+
+    //     if cur_pattern == 0 {
+    //         if started_damaged_block {
+    //             started_damaged_block = false;
+    //         }
+
+    //         cur_pattern = match counters.pop() {
+    //             Some(new_pattern) => {
+    //                 looking_for_delimeter = true;
+    //                 new_pattern
+    //             }
+    //             None => {
+    //                 counting_remaining = true;
+    //                 continue;
+    //             }
+    //         }
+    //     }
+    // }
+
+    // // Check if count is smaller than remaining
+    // if springs.iter().filter(|&&s| s == Spring::Unknown).count() == 0 {
+    //     println!("returning validate\n{:?} ({:?})\nneeded slots {}, remaining {} (ret {})", springs.iter().map(|s| match s {
+    //         Spring::Damaged => "#",
+    //         Spring::Operational => ".",
+    //         Spring::Unknown => "?"
+    //     }).collect::<String>(), pattern, cur_pattern + counters.iter().sum::<u8>(), remainining_slots, counters.iter().sum::<u8>() <= remainining_slots);
+    // }
+    // return cur_pattern + counters.iter().sum::<u8>() <= remainining_slots;
+    unimplemented!()
 }
 
-fn check_validity(line: &String, criteria: &Vec<u128>) -> bool {
-    let split = line.replace(".", " ").split_ascii_whitespace().map(|s| s.len() as u128).collect::<Vec<u128>>();
-    return &split == criteria;
+fn iterate_pattern(row: &Row) -> u128 {
+    let mut ret = 0;
+    // let mut springs = row.springs.clone();
+    let mut queue = vec![row.springs.clone()];
+
+    'outer: while let Some(springs) = queue.pop() {
+        let validated = validate_row(&springs, &row.pattern);
+        
+        // println!("{row:?}\n{validated}");
+
+        if !validated {
+            continue 'outer;
+        }
+
+        for idx in 0..springs.len() {
+            let spring = springs[idx];
+            match spring {
+                Spring::Unknown => {
+                    let mut new_damaged = springs.clone();
+                    new_damaged[idx] = Spring::Damaged;
+                    queue.push(new_damaged);
+
+                    
+                    let mut new_operational = springs.clone();
+                    new_operational[idx] = Spring::Operational;
+                    queue.push(new_operational);
+
+
+                    // println!("{queue:#?}");
+                    continue 'outer;
+                },
+                _ => continue
+            }
+        }
+
+        // No break
+        ret += 1;
+        // println!("{:?} ({:?})", springs.iter().map(|s| match s {
+        //     Spring::Damaged => "#",
+        //     Spring::Operational => ".",
+        //     Spring::Unknown => "?"
+        // }).collect::<String>(), row.pattern)
+    }
+
+    ret
 }
 
 fn part1(lines: &Vec<String>) -> u128 {
-    let parsed = lines.iter().map(|s| {
-        let split = s.split(" ").collect::<Vec<_>>();
-        let criteria: Vec<u128> = split[1].split(',').map(|s| s.parse().unwrap()).collect();
-        return (split[0], criteria);
-    }).collect::<Vec<_>>();
+    let rows = lines
+        .iter()
+        .map(|line| line.split_ascii_whitespace())
+        .map(|mut spl| {
+            let springs_str = spl.next().unwrap();
+            let pattern_str = spl.next().unwrap();
 
-    let mut count = 0;
-    for (_i, (line, criteria)) in parsed.iter().enumerate() {
-        //println!("i = {i}, {criteria:?}");
-        let pat = line.to_string();
-        //println!("{pat}");
-        let mut next = Some(pat.replace("?", "."));
-        while next.is_some() {
-            let unwrapped = next.unwrap();
-            if check_validity(&unwrapped, criteria) {
-                count += 1;
-                //println!("{}", unwrapped);
+            Row {
+                springs: springs_str.chars().map(|c| Spring::from(c)).collect(),
+                pattern: pattern_str.split(',').map(|s| s.parse().unwrap()).collect(),
             }
-            next = get_next_permutation(&unwrapped, &pat);
-        }
-    }
-    return count;
+        });
+
+    rows.map(|row| iterate_pattern(&row)).sum()
 }
 
-pub fn factorial(num: u128) -> u128 {
-    (1..=num).product()
-}
+// fn part2(lines: &Vec<String>) -> u128 {
+//     let parsed = lines.iter().map(|s| {
+//         let split = s.split(" ").collect::<Vec<_>>();
+//         let criteria: Vec<u128> = split[1].split(',').map(|s| s.parse().unwrap()).collect();
+//         //return (split[0], criteria);
 
-fn part2(lines: &Vec<String>) -> u128 {
-    let parsed = lines.iter().map(|s| {
-        let split = s.split(" ").collect::<Vec<_>>();
-        let criteria: Vec<u128> = split[1].split(',').map(|s| s.parse().unwrap()).collect();
-        //return (split[0], criteria);
-        
-        return (vec![split[0]].repeat(5).join("?"), criteria.repeat(5));
-    }).collect::<Vec<_>>();
-
-    let mut count = 0;
-    for (i, (line, criteria)) in parsed.iter().enumerate() {
-        println!("i = {i}, {criteria:?}");
-        let pat = line.to_string();
-        //println!("{pat}");
-        let mut next = Some(pat.replace("?", "."));
-        let mut count_per_i: u128 = 0;
-        while next.is_some() {
-            let unwrapped = next.unwrap();
-            if check_validity(&unwrapped, &criteria) {
-                count_per_i += 1;
-            }
-            println!("{}", unwrapped);
-            next = get_next_permutation(&unwrapped, &pat);
-        }
-        //count_per_i = 5_u128.pow((count_per_i as u32) - 1);
-        println!("total = {count_per_i}");
-        count += count_per_i;
-    }
-    return count;
-}
+//         return (vec![split[0]].repeat(5).join("?"), criteria.repeat(5));
+//     }).collect::<Vec<_>>();
+// }
